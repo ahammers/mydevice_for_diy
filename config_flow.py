@@ -1,4 +1,4 @@
-"""Config flow for raumthermometer."""
+"""Config flow for MyDeviceForDIY."""
 
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ def _has_listener_entry(hass: HomeAssistant) -> bool:
     )
 
 
-class RaumthermometerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class MyDeviceForDIYConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def async_step_user(self, user_input=None) -> FlowResult:
+    async def async_step_user(self, user_input=None):
         """Create the UDP listener entry (singleton)."""
         if _has_listener_entry(self.hass):
             return self.async_abort(reason="single_instance")
@@ -38,7 +38,7 @@ class RaumthermometerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             port = int(user_input[CONF_PORT])
             return self.async_create_entry(
-                title="Raumthermometer UDP Listener",
+                title="MyDeviceForDIY UDP Listener",
                 data={
                     ENTRY_TYPE: ENTRY_TYPE_LISTENER,
                     CONF_PORT: port,
@@ -96,7 +96,7 @@ class RaumthermometerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
-class RaumthermometerOptionsFlowHandler(config_entries.OptionsFlow):
+class MyDeviceForDIYOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, entry: config_entries.ConfigEntry) -> None:
         self.entry = entry
 
@@ -121,4 +121,4 @@ class RaumthermometerOptionsFlowHandler(config_entries.OptionsFlow):
 
 
 async def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-    return RaumthermometerOptionsFlowHandler(config_entry)
+    return MyDeviceForDIYOptionsFlowHandler(config_entry)

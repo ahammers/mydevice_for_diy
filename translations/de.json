@@ -2,14 +2,14 @@
   "config": {
     "step": {
       "user": {
-        "title": "Raumthermometer Listener",
+        "title": "MyDevice for DIY UDP Listener",
         "description": "Konfiguriere den UDP-Port, auf dem Home Assistant die Messwerte empfängt.",
         "data": {
           "port": "UDP Port"
         }
       },
       "confirm_device": {
-        "title": "Neues Raumthermometer entdeckt",
+        "title": "Neues DIY Gerät entdeckt",
         "description": "Gerät **{device_id}** wurde entdeckt. Wie soll es heißen?",
         "data": {
           "device_name": "Name"

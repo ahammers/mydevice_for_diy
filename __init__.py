@@ -1,4 +1,4 @@
-"""Eigene Raumthermometer integration.
+"""Eigene MyDeviceForDIY integration.
 
 - One "listener" config entry opens the UDP port and receives data.
 - Each thermometer is added as a separate "device" config entry (created via discovery)

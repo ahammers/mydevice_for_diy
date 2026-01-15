@@ -1,6 +1,6 @@
-"""Constants for the raumthermometer integration."""
+"""Constants for the MyDeviceForDIY integration."""
 
-DOMAIN = "raumthermometer"
+DOMAIN = "MyDeviceForDIY"
 
 CONF_PORT = "port"
 CONF_DEVICE_ID = "device_id"

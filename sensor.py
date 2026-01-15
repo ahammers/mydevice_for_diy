@@ -1,4 +1,4 @@
-"""Sensor platform for raumthermometer."""
+"""Sensor platform for MyDeviceForDIY."""
 
 from __future__ import annotations
 
@@ -61,12 +61,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     entities: list[SensorEntity] = []
     for f in FIELDS:
-        entities.append(RaumthermometerSensor(hass, device_id, device_name, f))
+        entities.append(MyDeviceForDIYSensor(hass, device_id, device_name, f))
 
     async_add_entities(entities)
 
 
-class RaumthermometerSensor(SensorEntity):
+class MyDeviceForDIYSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_should_poll = False
 
@@ -90,7 +90,7 @@ class RaumthermometerSensor(SensorEntity):
             identifiers={(DOMAIN, self._device_id)},
             name=self._device_name,
             manufacturer="Custom (ESP32)",
-            model="Raumthermometer",
+            model="MyDeviceForDIY",
         )
 
     @property
