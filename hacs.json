@@ -1,0 +1,8 @@
+{
+  "name": "MyDevice for DIY",
+  "domains": ["mydevice_for_diy"],
+  "iot_class": "local_push",
+  "render_readme": true,
+  "content_in_root": true,
+  "zip_release": false
+}
