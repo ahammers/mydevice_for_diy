@@ -5,7 +5,7 @@ from __future__ import annotations
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
@@ -94,8 +94,12 @@ class MyDeviceForDIYConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=schema,
             description_placeholders={"device_id": device_id},
         )
-
-
+    
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
+        return MyDeviceForDIYOptionsFlowHandler(config_entry)
+    
 class MyDeviceForDIYOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, entry: config_entries.ConfigEntry) -> None:
         self.entry = entry
@@ -119,6 +123,3 @@ class MyDeviceForDIYOptionsFlowHandler(config_entries.OptionsFlow):
         )
         return self.async_show_form(step_id="init", data_schema=schema)
 
-
-async def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-    return MyDeviceForDIYOptionsFlowHandler(config_entry)
