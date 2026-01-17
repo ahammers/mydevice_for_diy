@@ -210,7 +210,7 @@ async def _handle_packet(hass: HomeAssistant, obj: Any) -> None:
                     data={CONF_DEVICE_ID: device_id, CONF_DEVICE_TYPE: device_type},
                 )
             )
-            _LOGGER.info("Created discovery flow for %s", device_id)
+            _LOGGER.info("Created discovery flow for %s (%s)", device_id, device_type)
         return
 
     # Configured device -> tell the entities to update.
