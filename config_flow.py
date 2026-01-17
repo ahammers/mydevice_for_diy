@@ -57,6 +57,16 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_integration_discovery(self, discovery_info=None, user_input=None) -> FlowResult:
+        """Handle a discovered device."""
+
+        # Don't know why but I am not getting discovery_info here --- IGNORE ---
+        _LOGGER.info(
+            "async_step_integration_discovery\ndiscovery_info=%r\nuser_input=%r\nself._discovery_info=%r",
+            discovery_info,
+            user_input,
+            self._discovery_info,
+        )
+
         # Only store discovery payload once (first call). Never overwrite it with form data.
         if self._discovery_info is None and discovery_info is not None:
             self._discovery_info = discovery_info
