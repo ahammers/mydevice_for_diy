@@ -94,7 +94,7 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
 
         # IMPORTANT: Always set placeholders every time (for title formatting)
-        self.context["title_placeholders"] = {"device": device_id}
+        self.context["title_placeholders"] = {"device_id": device_id, 'device_type': device_type}
 
         if not any(e.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_LISTENER for e in self._async_current_entries()):
             return self.async_abort(reason="listener_missing")
