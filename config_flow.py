@@ -28,6 +28,9 @@ from .const import (
     SUPPORTED_DEVICE_TYPES,
 )
 
+import logging
+_LOGGER = logging.getLogger(__name__)
+
 
 class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle configuration for MyDevice for DIY."""
@@ -63,7 +66,17 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="no_discovery_info")
 
         device_id = str(self._discovery_info.get(CONF_DEVICE_ID, "")).strip()
-        device_type = str(self._discovery_info.get(CONF_DEVICE_TYPE, "")).strip()
+        device_type_raw = self._discovery_info.get(CONF_DEVICE_TYPE, "")
+        device_type = str(device_type_raw).strip()
+
+        _LOGGER.info(
+            "Discovery payload: device_id=%r device_type_raw=%r device_type=%r supported=%r full=%r",
+            device_id,
+            device_type_raw,
+            device_type,
+            SUPPORTED_DEVICE_TYPES,
+            self._discovery_info,
+        )
 
         if not device_id or device_type not in SUPPORTED_DEVICE_TYPES:
             return self.async_abort(reason="not_supported")
