@@ -57,9 +57,8 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_integration_discovery(self, discovery_info=None, user_input=None) -> FlowResult:
-        """Handle discovery triggered by the TCP server."""
-        # First call: store discovery payload
-        if discovery_info is not None:
+        # Only store discovery payload once (first call). Never overwrite it with form data.
+        if self._discovery_info is None and discovery_info is not None:
             self._discovery_info = discovery_info
 
         if self._discovery_info is None:
@@ -81,17 +80,15 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not device_id or device_type not in SUPPORTED_DEVICE_TYPES:
             return self.async_abort(reason="not_supported")
 
-        # One config entry per device_id.
         await self.async_set_unique_id(device_id)
         self._abort_if_unique_id_configured()
 
+        # IMPORTANT: Always set placeholders every time (for title formatting)
         self.context["title_placeholders"] = {"device": device_id}
 
-        # If the listener is missing, discovery is not useful yet.
         if not any(e.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_LISTENER for e in self._async_current_entries()):
             return self.async_abort(reason="listener_missing")
 
-        # Second call: user submitted the form
         if user_input is not None:
             name = str(user_input.get(CONF_NAME, "")).strip() or device_id
             return self.async_create_entry(
