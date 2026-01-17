@@ -198,13 +198,10 @@ async def _handle_packet(hass: HomeAssistant, obj: Any) -> None:
             except Exception:
                 pass
 
-    _LOGGER.warning("Received valid data from %s: %s", device_id, values)
 
     # Unknown device? Trigger discovery once so it appears under "Discovered".
     if device_id not in hass.data[DOMAIN]["configured"]:
-        _LOGGER.warning("A")
         if device_id not in hass.data[DOMAIN]["discovery_started"]:
-            _LOGGER.warning("B")
             hass.data[DOMAIN]["discovery_started"].add(device_id)
             hass.async_create_task(
                 hass.config_entries.flow.async_init(
@@ -213,9 +210,8 @@ async def _handle_packet(hass: HomeAssistant, obj: Any) -> None:
                     data={CONF_DEVICE_ID: device_id, CONF_DEVICE_TYPE: device_type},
                 )
             )
-        _LOGGER.warning("C")
+            _LOGGER.info("Created discovery flow for %s", device_id)
         return
-    _LOGGER.warning("D")
 
     # Configured device -> tell the entities to update.
     async_dispatcher_send(hass, _data_signal(device_id))
