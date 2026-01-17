@@ -56,50 +56,31 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema({vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.Coerce(int)})
         return self.async_show_form(step_id="user", data_schema=schema)
 
-    async def async_step_integration_discovery(self, discovery_info=None, user_input=None) -> FlowResult:
-        """Handle a discovered device."""
+    async def async_step_integration_discovery(self, user_input=None) -> FlowResult:
+        """Handle discovery + form submit in one step."""
 
-        # Don't know why but I am not getting discovery_info here --- IGNORE ---
-        _LOGGER.info(
-            "async_step_integration_discovery\ndiscovery_info=%r\nuser_input=%r\nself._discovery_info=%r",
-            discovery_info,
-            user_input,
-            self._discovery_info,
-        )
+        # 1) If this call contains discovery fields, store them
+        if isinstance(user_input, dict) and CONF_DEVICE_ID in user_input and CONF_DEVICE_TYPE in user_input:
+            self.context["device_id"] = str(user_input.get(CONF_DEVICE_ID, "")).strip()
+            self.context["device_type"] = str(user_input.get(CONF_DEVICE_TYPE, "")).strip().lower()
 
-        # Only store discovery payload once (first call). Never overwrite it with form data.
-        if self._discovery_info is None and discovery_info is not None:
-            self._discovery_info = discovery_info
-
-        if self._discovery_info is None:
-            return self.async_abort(reason="no_discovery_info")
-
-        device_id = str(self._discovery_info.get(CONF_DEVICE_ID, "")).strip()
-        device_type_raw = self._discovery_info.get(CONF_DEVICE_TYPE, "")
-        device_type = str(device_type_raw).strip()
-
-        _LOGGER.info(
-            "Discovery payload: device_id=%r device_type_raw=%r device_type=%r supported=%r full=%r",
-            device_id,
-            device_type_raw,
-            device_type,
-            SUPPORTED_DEVICE_TYPES,
-            self._discovery_info,
-        )
+        device_id = str(self.context.get("device_id", "")).strip()
+        device_type = str(self.context.get("device_type", "")).strip().lower()
 
         if not device_id or device_type not in SUPPORTED_DEVICE_TYPES:
             return self.async_abort(reason="not_supported")
 
+        # For your title: {device_id} / {device_type}
+        self.context["title_placeholders"] = {"device_id": device_id, "device_type": device_type}
+
         await self.async_set_unique_id(device_id)
         self._abort_if_unique_id_configured()
-
-        # IMPORTANT: Always set placeholders every time (for title formatting)
-        self.context["title_placeholders"] = {"device_id": device_id, 'device_type': device_type}
 
         if not any(e.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_LISTENER for e in self._async_current_entries()):
             return self.async_abort(reason="listener_missing")
 
-        if user_input is not None:
+        # 2) If this call contains the form submission (name), create entry
+        if isinstance(user_input, dict) and CONF_NAME in user_input:
             name = str(user_input.get(CONF_NAME, "")).strip() or device_id
             return self.async_create_entry(
                 title=name,
@@ -111,8 +92,9 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        schema = vol.Schema({vol.Required(CONF_NAME, default=device_id): str})
+        schema = vol.Schema({vol.Required(CONF_NAME, default=f"MyDevice {device_id}"): str})
         return self.async_show_form(step_id="integration_discovery", data_schema=schema)
+
 
     @callback
     def async_get_options_flow(self, config_entry):
