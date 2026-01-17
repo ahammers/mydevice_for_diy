@@ -60,7 +60,7 @@ class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._discovery_info = discovery_info
 
         if self._discovery_info is None:
-            return self.async_abort(reason="not_supported")
+            return self.async_abort(reason="no_discovery_info")
 
         device_id = str(self._discovery_info.get(CONF_DEVICE_ID, "")).strip()
         device_type = str(self._discovery_info.get(CONF_DEVICE_TYPE, "")).strip()

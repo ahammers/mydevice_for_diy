@@ -9,7 +9,7 @@
         }
       },
       "integration_discovery": {
-        "title": "Neues Geraet entdeckt: {device}",
+        "title": "Neues Geraet entdeckt: {device_id} / {device_type}",
         "description": "Vergib einen Namen fuer das Geraet.",
         "data": {
           "name": "Name"
@@ -19,6 +19,7 @@
     "abort": {
       "single_instance_allowed": "Der Listener ist bereits eingerichtet.",
       "not_supported": "Dieses Geraet wird nicht unterstuetzt.",
+      "no_discovery_info": "Keine Entdeckungsinformationen erhalten.",
       "listener_missing": "Bitte fuege zuerst die Integration hinzu, damit der Listener gestartet wird."
     }
   },

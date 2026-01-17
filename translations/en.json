@@ -9,7 +9,7 @@
         }
       },
       "integration_discovery": {
-        "title": "New device discovered: {device}",
+        "title": "New device discovered: {device_id} / {device_type}",
         "description": "Choose a friendly name for the device.",
         "data": {
           "name": "Name"
@@ -19,6 +19,7 @@
     "abort": {
       "single_instance_allowed": "Listener is already configured.",
       "not_supported": "This device is not supported.",
+      "no_discovery_info": "No discovery information received.",
       "listener_missing": "Please add the integration first so the listener can start."
     }
   },
