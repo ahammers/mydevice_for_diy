@@ -1,213 +1,183 @@
-<p align="center">
-  <img src="icon256x256.png" alt="MyDevice for DIY Icon" width="256" height="256">
-</p>
+# MyDevice for DIY (Home Assistant)
 
-# MyDevice for DIY
-## Custom ESP32 Devices for Home Assistant (UDP Push Integration)
+A small Home Assistant custom integration that lets your DIY devices **push** sensor data to Home Assistant via a simple TCP JSON protocol.
 
-**MyDevice for DIY** is a project designed to make it as easy as possible to connect
-**your own DIY devices** (for example based on **ESP32**) to **Home Assistant**.
+- **Listener:** Home Assistant listens on TCP **port 55355** (configurable).
+- **Discovery:** If an unknown device sends data, it will show up under **Settings → Devices & services → Discovered**.
+- **Entities:** Once you add the discovered device, the integration creates entities and updates them on every packet.
 
-This repository documents a **Home Assistant custom integration** and a deliberately
-**simple UDP-based protocol** for self-built **room thermometers and hygrometers**.
+Currently supported device types:
 
-The focus is on **low power consumption**, **robust data delivery**, and **full control**
-over the protocol and data model.
+- `ht` (Humidity + Temperature)
+  - `data.t` → temperature in **°C** (float)
+  - `data.h` → humidity in **%** (float)
 
 ---
 
-## Key Features
+## Protocol
 
-- Push-based communication (no polling)
-- UDP transport (lightweight, fast, simple)
-- Ideal for battery-powered ESP32 devices
-- Automatic device discovery in Home Assistant
-- Immediate ACK with time synchronization
-- No MQTT broker, no HTTP server required
+TCP is a byte stream. To keep parsing simple and robust, this integration uses **NDJSON**:
+
+> One JSON object per line, terminated with `\n`.
+
+### Packet format
+
+```json
+{
+  "device": "<unique-device-id>",
+  "type": "<device-type-id>",
+  "data": {
+    "t": 21.3,
+    "h": 45.6
+  }
+}
+```
+
+### Example (one line)
+
+```text
+{"device":"ABC123","type":"ht","data":{"t":21.3,"h":45.6}}\n
+```
+
+### Notes
+
+- Unknown keys inside `data` are ignored for now.
+- Invalid JSON lines are ignored.
+- Values are stored as **last received** values.
 
 ---
 
-## System Overview
+## Installation (HACS Custom Repository)
 
-### ESP32 Device (Client)
+1. In Home Assistant open **HACS → Integrations**
+2. Open the menu (⋮) → **Custom repositories**
+3. Add your GitHub repo URL, choose category **Integration**
+4. Install **MyDevice for DIY**
+5. Restart Home Assistant
+6. Go to **Settings → Devices & services → Add integration** and search for **MyDevice for DIY**
+7. Configure the listener port (default: 55355)
 
-- Measures temperature and/or humidity
-- Sleeps most of the time
-- Wakes up periodically (e.g. every 5 minutes)
-- Sends a single UDP datagram with the measurement
-- Waits for an ACK
-- Uses the ACK timestamp to synchronize its RTC
-
-### Home Assistant (Server / Integration)
-
-- Opens a configurable UDP port
-- Receives measurement datagrams
-- Sends an immediate acknowledgment (ACK)
-- Automatically discovers unknown devices
-- Creates Home Assistant devices and sensor entities
+After that, devices that send packets will appear as **Discovered**.
 
 ---
 
-## UDP Protocol Specification
+## Usage
 
-### Measurement Record (Record Type `11` – “ht”)
+### 1) Add the listener
 
-**Format**
+Add the integration once to create the *listener* entry. This starts the TCP server.
+
+### 2) Send data from a device
+
+Send one JSON line per measurement.
+
+#### Quick test from a shell
+
+```bash
+printf '{"device":"TEST01","type":"ht","data":{"t":22.5,"h":40.0}}\n' | nc -w 1 <homeassistant-ip> 55355
 ```
-<utc-timestamp>;<record-type>;<device-id>;<temperature*10>;<humidity*10>
+
+#### Minimal C++ example (POSIX sockets)
+
+```cpp
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cstring>
+#include <string>
+
+static bool send_line(const char* host, int port, const std::string& line)
+{
+    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return false;
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    if (::inet_pton(AF_INET, host, &addr.sin_addr) != 1) {
+        ::close(fd);
+        return false;
+    }
+
+    if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+        ::close(fd);
+        return false;
+    }
+
+    const std::string payload = line + "\n"; // NDJSON: one JSON object per line
+    const ssize_t n = ::send(fd, payload.data(), payload.size(), 0);
+    ::close(fd);
+    return n == static_cast<ssize_t>(payload.size());
+}
+
+int main()
+{
+    const std::string json = R"({"device":"ABC123","type":"ht","data":{"t":21.3,"h":45.6}})";
+    return send_line("192.168.1.10", 55355, json) ? 0 : 1;
+}
 ```
 
-**Example**
-```
-1768503477;11;RT001;225;514
-```
+### 3) Finish device setup in Home Assistant
 
-**Field Description**
+- Go to **Settings → Devices & services**
+- Under **Discovered**, click the new device
+- Give it a name and finish setup
 
-| Field | Description |
-|-----:|-------------|
-| `utc-timestamp` | Unix timestamp (UTC, seconds) |
-| `record-type` | `11` = temperature & humidity |
-| `device-id` | Unique device identifier |
-| `temperature*10` | Temperature in °C × 10 (225 = 22.5 °C) |
-| `humidity*10` | Relative humidity in % × 10 (514 = 51.4 %) |
+The integration creates:
+
+- `<name> Temperature` (°C)
+- `<name> Humidity` (%)
 
 ---
 
-### Optional / Missing Values
+## Security considerations
 
-Individual values may be omitted:
+This is a LAN push protocol. On purpose it is minimal and does **not** include authentication.
 
-```
-;11;RT001;;514
-```
-→ humidity only
+Recommended:
 
-```
-;11;RT001;225;
-```
-→ temperature only
+- Only expose the TCP port inside your local network.
+- Use firewall/VLAN rules to limit who can connect.
+- If you need authentication/TLS, open an issue or add it yourself (see "Roadmap").
 
 ---
 
-### Timestamp Handling
+## Troubleshooting
 
-#### Absolute Timestamp
-```
-1768503477;11;RT001;225;514
-```
+### No device appears under "Discovered"
 
-#### No Timestamp
-```
-;11;RT001;225;514
-```
-→ Home Assistant uses the receive time
+- Make sure you added the integration once (listener entry exists).
+- Check that the port is reachable from the device.
+- Ensure you send **one JSON object per line** and terminate with `\n`.
 
-#### Relative Timestamp (negative)
-```
--40;11;RT001;225;514
-```
-→ measurement is 40 seconds old
+### Entities do not update
 
-Home Assistant converts relative timestamps into absolute UTC timestamps if system time is available.
+- Verify the device was added (not only discovered).
+- Ensure the packet uses the configured `device` id.
+
+### Logs
+
+Enable debug logs in `configuration.yaml`:
+
+```yaml
+logger:
+  default: info
+  logs:
+    custom_components.mydevice_for_diy: debug
+```
 
 ---
 
-## Acknowledgment (ACK)
+## Roadmap ideas
 
-**Format**
-```
-<utc-timestamp>;1
-```
-
-**Example**
-```
-1768503746;1
-```
-
-**Properties**
-- Sent immediately after receiving a datagram
-- Always contains the *current* UTC timestamp
-- Used by the client to correct its RTC
+- Optional shared secret / token
+- TLS support
+- More device types and dynamic entity mapping
+- Rate limiting / connection pooling
 
 ---
 
-## Client Retry Behavior
+## License
 
-- Client sends a measurement record
-- Waits for ACK
-- If no ACK is received:
-  - retransmits the same datagram
-  - retries every second
-  - keeps the same timestamp
-- Stops retrying after an internal timeout
-
-The server accepts duplicate packets and always responds with a fresh ACK.
-
----
-
-## Home Assistant Integration Details
-
-### Devices and Entities
-
-- Each ESP32 device becomes **one Home Assistant device**
-- For each device the following entities are created:
-  - `sensor.<name>_temperature`
-  - `sensor.<name>_humidity`
-
-**Additional State Attributes**
-- `measurement_ts_utc` – measurement timestamp
-- `last_seen_utc` – last packet receive time
-
----
-
-### Automatic Device Discovery
-
-- A new `device-id` sends data
-- Device appears under **Settings → Devices & Services → Discovered**
-- User confirms and assigns a name
-- Device and entities are created
-
----
-
-## Configuration
-
-### Config Flow
-
-- Configure the UDP listening port
-- Default: `45678`
-- Only one listener per Home Assistant instance
-
-### Options Flow
-
-- Change the UDP port after setup
-- Listener is restarted automatically
-
----
-
-## Installation
-
-1. Copy `custom_components/raumthermometer/` to  
-   `config/custom_components/raumthermometer/`
-2. Restart Home Assistant
-3. Go to **Settings → Devices & Services → Add Integration**
-4. Select **“MyDevice for DIY”**
-5. Configure the UDP port
-
----
-
-## Extensibility
-
-MyDevice for DIY is intentionally kept simple and extensible:
-
-- Battery voltage / level
-- RSSI / signal quality
-- Additional sensors
-- Other DIY device classes
-
----
-
-## Project Goal
-
-**MyDevice for DIY** aims to provide a **small, robust, and easy-to-understand foundation**
-for custom hardware projects integrated into Home Assistant — without unnecessary complexity.
+MIT (recommended for HACS repos) - add your preferred license file.

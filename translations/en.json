@@ -1,0 +1,35 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MyDevice for DIY",
+        "description": "Sets up the TCP listener. New devices will appear as 'Discovered' once they send data.",
+        "data": {
+          "port": "TCP Port"
+        }
+      },
+      "integration_discovery": {
+        "title": "New device discovered: {device}",
+        "description": "Choose a friendly name for the device.",
+        "data": {
+          "name": "Name"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Listener is already configured.",
+      "not_supported": "This device is not supported.",
+      "listener_missing": "Please add the integration first so the listener can start."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Device options",
+        "data": {
+          "name": "Name"
+        }
+      }
+    }
+  }
+}

@@ -1,125 +1,106 @@
-"""Config flow for MyDeviceForDIY."""
+"""Config flow for MyDevice for DIY.
+
+We use two kinds of entries:
+- Listener entry (singleton): configures the TCP port and starts the server.
+- Device entry: created via discovery when a new device sends data.
+
+The discovery source is integration_discovery so devices show up under "Discovered".
+"""
 
 from __future__ import annotations
 
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_DEVICE_ID,
-    CONF_DEVICE_NAME,
+    CONF_DEVICE_TYPE,
+    CONF_ENTRY_TYPE,
+    CONF_NAME,
     CONF_PORT,
     DEFAULT_PORT,
     DOMAIN,
-    ENTRY_TYPE,
     ENTRY_TYPE_DEVICE,
     ENTRY_TYPE_LISTENER,
+    SUPPORTED_DEVICE_TYPES,
 )
 
 
-def _has_listener_entry(hass: HomeAssistant) -> bool:
-    return any(
-        e.data.get(ENTRY_TYPE) == ENTRY_TYPE_LISTENER
-        for e in hass.config_entries.async_entries(DOMAIN)
-    )
+class MyDeviceForDiyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle configuration for MyDevice for DIY."""
 
-
-class MyDeviceForDIYConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def async_step_user(self, user_input=None):
-        """Create the UDP listener entry (singleton)."""
-        if _has_listener_entry(self.hass):
-            return self.async_abort(reason="single_instance")
+    async def async_step_user(self, user_input=None) -> FlowResult:
+        """Create the listener entry."""
+        # Allow only a single listener configuration.
+        if any(e.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_LISTENER for e in self._async_current_entries()):
+            return self.async_abort(reason="single_instance_allowed")
 
         if user_input is not None:
             port = int(user_input[CONF_PORT])
             return self.async_create_entry(
-                title="MyDeviceForDIY UDP Listener",
-                data={
-                    ENTRY_TYPE: ENTRY_TYPE_LISTENER,
-                    CONF_PORT: port,
-                },
+                title="MyDevice for DIY Listener",
+                data={CONF_ENTRY_TYPE: ENTRY_TYPE_LISTENER, CONF_PORT: port},
             )
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=65535)
-                )
-            }
-        )
+        schema = vol.Schema({vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.Coerce(int)})
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_integration_discovery(self, discovery_info) -> FlowResult:
-        """Handle discovery of a new device-id via incoming UDP data."""
-        device_id = (discovery_info or {}).get(CONF_DEVICE_ID, "")
-        device_id = str(device_id).strip()
+        """Handle discovery triggered by the TCP server."""
+        device_id = str(discovery_info.get(CONF_DEVICE_ID, "")).strip()
+        device_type = str(discovery_info.get(CONF_DEVICE_TYPE, "")).strip()
 
-        if not device_id:
-            return self.async_abort(reason="invalid_discovery")
+        if not device_id or device_type not in SUPPORTED_DEVICE_TYPES:
+            return self.async_abort(reason="not_supported")
 
+        # One config entry per device_id.
         await self.async_set_unique_id(device_id)
         self._abort_if_unique_id_configured()
 
-        self.context["title_placeholders"] = {"device_id": device_id}
-        self._discovered_device_id = device_id
+        self.context["title_placeholders"] = {"device": device_id}
 
-        return await self.async_step_confirm_device()
-
-    async def async_step_confirm_device(self, user_input=None) -> FlowResult:
-        device_id = getattr(self, "_discovered_device_id", "")
+        # If the listener is missing, discovery is not useful yet.
+        if not any(e.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_LISTENER for e in self._async_current_entries()):
+            return self.async_abort(reason="listener_missing")
 
         if user_input is not None:
-            name = str(user_input[CONF_DEVICE_NAME]).strip() or device_id
+            name = str(user_input[CONF_NAME]).strip() or device_id
             return self.async_create_entry(
                 title=name,
                 data={
-                    ENTRY_TYPE: ENTRY_TYPE_DEVICE,
+                    CONF_ENTRY_TYPE: ENTRY_TYPE_DEVICE,
                     CONF_DEVICE_ID: device_id,
-                    CONF_DEVICE_NAME: name,
+                    CONF_DEVICE_TYPE: device_type,
+                    CONF_NAME: name,
                 },
             )
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_DEVICE_NAME, default=device_id): str,
-            }
-        )
-        return self.async_show_form(
-            step_id="confirm_device",
-            data_schema=schema,
-            description_placeholders={"device_id": device_id},
-        )
-    
-    @staticmethod
+        schema = vol.Schema({vol.Required(CONF_NAME, default=device_id): str})
+        return self.async_show_form(step_id="integration_discovery", data_schema=schema)
+
     @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-        return MyDeviceForDIYOptionsFlow(config_entry)
-    
-class MyDeviceForDIYOptionsFlow(config_entries.OptionsFlow):
+    def async_get_options_flow(self, config_entry):
+        return MyDeviceForDiyOptionsFlow(config_entry)
+
+
+class MyDeviceForDiyOptionsFlow(config_entries.OptionsFlow):
+    """Options flow (currently only the friendly name)."""
+
     def __init__(self, entry: config_entries.ConfigEntry) -> None:
         self.entry = entry
 
     async def async_step_init(self, user_input=None) -> FlowResult:
-        # Only the listener entry has options.
-        if self.entry.data.get(ENTRY_TYPE) != ENTRY_TYPE_LISTENER:
-            return self.async_abort(reason="no_options")
+        if self.entry.data.get(CONF_ENTRY_TYPE) != ENTRY_TYPE_DEVICE:
+            return self.async_abort(reason="not_supported")
 
         if user_input is not None:
-            return self.async_create_entry(title="", data={CONF_PORT: int(user_input[CONF_PORT])})
+            return self.async_create_entry(title="", data={CONF_NAME: str(user_input[CONF_NAME])})
 
-        current_port = int(self.entry.options.get(CONF_PORT, self.entry.data.get(CONF_PORT, DEFAULT_PORT)))
-
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_PORT, default=current_port): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=65535)
-                )
-            }
-        )
+        current_name = self.entry.options.get(CONF_NAME, self.entry.data.get(CONF_NAME, self.entry.title))
+        schema = vol.Schema({vol.Required(CONF_NAME, default=current_name): str})
         return self.async_show_form(step_id="init", data_schema=schema)
-

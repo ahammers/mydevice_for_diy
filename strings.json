@@ -2,34 +2,32 @@
   "config": {
     "step": {
       "user": {
-        "title": "MyDevice for DIY Listener",
-        "description": "Konfiguriere den UDP-Port, auf dem Home Assistant die Messwerte empfängt.",
+        "title": "MyDevice for DIY",
+        "description": "Richtet den TCP Listener ein. Danach tauchen neue Geraete unter 'Entdeckt' auf, sobald sie Daten senden.",
         "data": {
-          "port": "UDP Port"
+          "port": "TCP Port"
         }
       },
-      "confirm_device": {
-        "title": "Neues DIY Gerät entdeckt",
-        "description": "Gerät **{device_id}** wurde entdeckt. Wie soll es heißen?",
+      "integration_discovery": {
+        "title": "Neues Geraet entdeckt: {device}",
+        "description": "Vergib einen Namen fuer das Geraet.",
         "data": {
-          "device_name": "Name"
+          "name": "Name"
         }
       }
     },
-    "error": {},
     "abort": {
-      "single_instance": "Ein Listener ist bereits konfiguriert.",
-      "invalid_discovery": "Ungültige Discovery-Daten.",
-      "no_options": "Für diesen Eintrag gibt es keine Optionen."
+      "single_instance_allowed": "Der Listener ist bereits eingerichtet.",
+      "not_supported": "Dieses Geraet wird nicht unterstuetzt.",
+      "listener_missing": "Bitte fuege zuerst die Integration hinzu, damit der Listener gestartet wird."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Listener Optionen",
-        "description": "UDP-Port ändern (Listener wird danach neu gestartet).",
+        "title": "Geraeteoptionen",
         "data": {
-          "port": "UDP Port"
+          "name": "Name"
         }
       }
     }
