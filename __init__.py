@@ -173,10 +173,13 @@ async def _handle_packet(hass: HomeAssistant, obj: Any) -> None:
     data = obj.get("data")
 
     if not isinstance(device_id, str) or not device_id:
+        _LOGGER.warning("Missing device id")
         return
     if not isinstance(device_type, str) or device_type not in SUPPORTED_DEVICE_TYPES:
+        _LOGGER.warning("Unsupported device type %s", device_type)
         return
     if not isinstance(data, dict):
+        _LOGGER.warning("Missing device data")
         return
 
     # Store the last values we received.
@@ -194,6 +197,8 @@ async def _handle_packet(hass: HomeAssistant, obj: Any) -> None:
                 values["h"] = float(data["h"])
             except Exception:
                 pass
+
+    _LOGGER.warning("Received valid data from %s: %s", device_id, values)
 
     # Unknown device? Trigger discovery once so it appears under "Discovered".
     if device_id not in hass.data[DOMAIN]["configured"]:
